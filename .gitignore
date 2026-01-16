@@ -1,0 +1,7 @@
+
+.venv/
+__pycache__/
+*.pyc
+.env
+gcp_service_account.json
+registrations.sqlite3
