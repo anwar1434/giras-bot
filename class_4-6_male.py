@@ -51,7 +51,12 @@ SPREADSHEET_ID = "1di3hHm23biLNOuM8dMmn9Bv_oS0VVsRWfuNh-_XlgZs"
 WORKSHEET_NAME = "Sheet1"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CREDS_FILE = os.getenv("CREDS_FILE", "/etc/secrets/gcp_service_account.json")
+
+CREDS_FILE = os.getenv("CREDS_FILE")
+if not CREDS_FILE:
+    local = os.path.join(BASE_DIR, "gcp_service_account.json")
+    CREDS_FILE = local if os.path.exists(local) else "/etc/secrets/gcp_service_account.json"
+
 
 def _append_row_blocking(values: list[str]):
     creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
@@ -361,6 +366,18 @@ async def cancel_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("تم الإلغاء.")
     return ConversationHandler.END
 
+conv = ConversationHandler(
+    entry_points=[CommandHandler("start", start)],
+    states={
+        NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, name_step)],
+        GRADE: [CallbackQueryHandler(grade_step)],
+        TRACK: [CallbackQueryHandler(track_step)],
+        OPTION: [CallbackQueryHandler(option_step)],
+        CONFIRM: [CallbackQueryHandler(confirm_step)],
+    },
+    fallbacks=[CommandHandler("cancel", cancel_cmd)],
+    allow_reentry=True,
+)
 
 def main():
     token = os.getenv("BOT_TOKEN")
@@ -368,26 +385,37 @@ def main():
         raise RuntimeError("Missing BOT_TOKEN env var")
 
     init_db()
-
     app = ApplicationBuilder().token(token).build()
 
-    conv = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, name_step)],
-            GRADE: [CallbackQueryHandler(grade_step)],
-            TRACK: [CallbackQueryHandler(track_step)],
-            OPTION: [CallbackQueryHandler(option_step)],
-            CONFIRM: [CallbackQueryHandler(confirm_step)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel_cmd)],
-        allow_reentry=True,
-    )
-
+    # handlers...
     app.add_handler(conv)
     app.add_handler(CommandHandler("my", my_registration))
-    log.info("Bot is running...")
-    app.run_polling()
+    
+    render_url = os.getenv("RENDER_EXTERNAL_URL")  # Render بيعطيك رابط الخدمة تلقائياً
+    if render_url:
+        port = int(os.getenv("PORT", "10000"))  # لازم تسمع على PORT في Render
+        render_url = render_url.rstrip("/")
+
+        # سرّ للحماية (Telegram رح يبعت هالسر بالهيدر)
+        secret_token = os.getenv("WEBHOOK_SECRET_TOKEN", "CHANGE_ME")
+
+        # مسار webhook (خليه صعب التخمين)
+        webhook_path = os.getenv("WEBHOOK_PATH", "tg-webhook")
+
+        webhook_url = f"{render_url}/{webhook_path}"
+
+        log.info("Bot webhook URL: %s", webhook_url)
+
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path=webhook_path,
+            webhook_url=webhook_url,
+            secret_token=secret_token,
+        )
+    else:
+        app.run_polling()
+
 
 
 if __name__ == "__main__":
