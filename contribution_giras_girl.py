@@ -35,7 +35,7 @@ if not CREDS_FILE:
     local = os.path.join(BASE_DIR, "gcp_service_account.json")
     CREDS_FILE = local if os.path.exists(local) else "/etc/secrets/gcp_service_account.json"
 
-ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "-5193954757")  # ضع chat id للمسؤول هنا عبر env
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "-5160663025")  # ضع chat id للمسؤول هنا عبر env
 
 def _append_row_blocking(values: list[str]) -> None:
     if not SPREADSHEET_ID:
