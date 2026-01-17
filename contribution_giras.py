@@ -110,7 +110,7 @@ def _clip(s: str, limit: int = 15000) -> str:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["awaiting_name"] = True
-    await update.message.reply_text("أهلاً! ما هو اسمك الكامل؟")
+    await update.message.reply_text("حيا الله أخونا الحبيب  ! ما هو اسمك الكامل؟")
 
 async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # يفيدك لتجيب ADMIN_CHAT_ID
@@ -123,6 +123,8 @@ async def handle_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not m or not user or not chat:
         return
 
+    if chat.type != "private":
+        return
     # 1) إذا لسه ما سجل الاسم: خذ الرسالة كنص اسم
     if context.user_data.get("awaiting_name") or not context.user_data.get("student_name"):
         if not m.text:
@@ -136,7 +138,7 @@ async def handle_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data["student_name"] = student_name
         context.user_data["awaiting_name"] = False
-        await m.reply_text(f"تمام يا {student_name} ✅ الآن ابعت مشاركتك (نص/صورة/ملف/صوت).")
+        await m.reply_text(f"تمام يا {student_name} ✅ \n الآن ابعت مشاركتك (نص/صورة/ملف/صوت).")
         return
 
     # 2) إذا الاسم موجود → اعتبر الرسالة مشاركة
@@ -175,7 +177,7 @@ async def handle_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 chat_id=admin_id,
                 text=(
                     f"📩 مشاركة جديدة\n"
-                    f"👤 {user.full_name} (@{user.username or '-'}) | ID: {user.id}\n"
+                    f"👤 {user.full_name} (@{user.username or '-'})\n"
                     f"🧾 الاسم المُدخل: {student_name}\n"   # ✅ الإضافة المطلوبة
                     f"🧾 النوع: {msg_type}\n"
                     f"🕒 {ts} UTC\n"
@@ -192,7 +194,7 @@ async def handle_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             log.warning("Failed to notify admin: %s", e)
 
-    await m.reply_text("تم الاستلام ✅")
+    await m.reply_text("تم استلام مشروعك بنجاح ✅")
 
 
 def main():
