@@ -26,7 +26,7 @@ logging.basicConfig(
 log = logging.getLogger("replies-bot")
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-SPREADSHEET_ID = os.getenv("1di3hHm23biLNOuM8dMmn9Bv_oS0VVsRWfuNh-_XlgZs", "")
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "1di3hHm23biLNOuM8dMmn9Bv_oS0VVsRWfuNh-_XlgZs")
 WORKSHEET_NAME = os.getenv("WORKSHEET_NAME", "المشاركات")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -35,7 +35,7 @@ if not CREDS_FILE:
     local = os.path.join(BASE_DIR, "gcp_service_account.json")
     CREDS_FILE = local if os.path.exists(local) else "/etc/secrets/gcp_service_account.json"
 
-ADMIN_CHAT_ID = os.getenv("-5193954757")  # ضع chat id للمسؤول هنا عبر env
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "-5193954757")  # ضع chat id للمسؤول هنا عبر env
 
 def _append_row_blocking(values: list[str]) -> None:
     if not SPREADSHEET_ID:
