@@ -109,7 +109,8 @@ def _clip(s: str, limit: int = 15000) -> str:
     return s if len(s) <= limit else (s[:limit] + "…")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("ابعت مشاركتك هنا ✅ وسيتم حفظها وإرسالها للمسؤول.")
+    context.user_data["awaiting_name"] = True
+    await update.message.reply_text("أهلاً! ما هو اسمك الكامل؟")
 
 async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # يفيدك لتجيب ADMIN_CHAT_ID
@@ -122,42 +123,67 @@ async def handle_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not m or not user or not chat:
         return
 
+    # 1) إذا لسه ما سجل الاسم: خذ الرسالة كنص اسم
+    if context.user_data.get("awaiting_name") or not context.user_data.get("student_name"):
+        if not m.text:
+            await m.reply_text("لو سمحت ابعت اسمك كنص (مو ملف/صورة).")
+            return
+
+        student_name = (m.text or "").strip()
+        if len(student_name) < 3:
+            await m.reply_text("الاسم قصير. اكتب اسمك الكامل مرة ثانية:")
+            return
+
+        context.user_data["student_name"] = student_name
+        context.user_data["awaiting_name"] = False
+        await m.reply_text(f"تمام يا {student_name} ✅ الآن ابعت مشاركتك (نص/صورة/ملف/صوت).")
+        return
+
+    # 2) إذا الاسم موجود → اعتبر الرسالة مشاركة
+    student_name = context.user_data.get("student_name", "")
+
     msg_type = _message_type(update)
     content, file_id = _extract_content(update)
     ts = datetime.utcnow().isoformat()
 
-    # ✅ الأعمدة بالشيت (رتّبها مثل ما بدك)
+    # سجل بالشيت (أضفت عمود للاسم الذي أدخله المستخدم)
     row = [
         ts,                      # الوقت UTC
         str(user.id),            # user_id
         user.username or "",     # username
-        user.full_name or "",    # الاسم
+        user.full_name or "",    # اسم تيليغرام
+        student_name,            # الاسم الذي أدخله المستخدم ✅
         msg_type,                # نوع الرسالة
         _clip(content),          # النص/الكابشن
         file_id or "",           # file_id للمرفقات
     ]
 
-    # 1) حفظ على Google Sheet
-    await append_row_async(row)
+    try:
+        await append_row_async(row)
+    except Exception:
+        log.exception("Failed to save to sheet")
+        await m.reply_text("وصلتني مشاركتك ✅ بس صار خطأ بالتخزين على الشيت. بلغ الإدارة.")
+        return
 
-    # 2) إرسال للمسؤول
+    # إرسال للمسؤول + فورورد الرسالة كما هي
     if ADMIN_CHAT_ID:
         try:
             admin_id = int(ADMIN_CHAT_ID)
 
-            # رسالة ملخّص
+            # رسالة ملخّص (مثل ما هي) + إضافة الاسم
             await context.bot.send_message(
                 chat_id=admin_id,
                 text=(
                     f"📩 مشاركة جديدة\n"
                     f"👤 {user.full_name} (@{user.username or '-'}) | ID: {user.id}\n"
+                    f"🧾 الاسم المُدخل: {student_name}\n"   # ✅ الإضافة المطلوبة
                     f"🧾 النوع: {msg_type}\n"
                     f"🕒 {ts} UTC\n"
                     f"✍️ {(_clip(content, 2000) or '[بدون نص]')}"
                 ),
             )
 
-            # Forward للرسالة الأصلية (يوصل معها صورة/ملف/صوت…)
+            # Forward للرسالة الأصلية (كما هي)
             await context.bot.forward_message(
                 chat_id=admin_id,
                 from_chat_id=chat.id,
@@ -167,6 +193,7 @@ async def handle_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             log.warning("Failed to notify admin: %s", e)
 
     await m.reply_text("تم الاستلام ✅")
+
 
 def main():
     token = os.getenv("BOT_TOKEN")
